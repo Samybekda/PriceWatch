@@ -1,0 +1,20 @@
+# Environnements virtuels Python
+.venv/
+env/
+venv/
+ENV/
+
+# Caches Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Base de données locale de développement
+pricewatch.db
+
+# Fichiers système et éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
