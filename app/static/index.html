@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PriceWatch - Comparateur & Surveillance de Prix Multi-sites</title>
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Chart.js pour le graphique d'évolution des prix -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <!-- Barre de Navigation Supérieure -->
+    <header>
+        <div class="navbar">
+            <div class="logo-area">
+                <span class="logo-icon">🏷️</span>
+                <span class="logo-title">PriceWatch</span>
+                <span class="logo-badge">L3 MIAGE Toulouse</span>
+            </div>
+
+            <nav class="nav-links">
+                <button class="nav-btn active" data-tab="tab-dashboard">
+                    📊 Tableau de bord
+                </button>
+                <button class="nav-btn" data-tab="tab-products">
+                    📦 Produits & Comparateur
+                </button>
+                <button class="nav-btn" data-tab="tab-history">
+                    📈 Historique & Graphique
+                </button>
+                <button class="nav-btn" data-tab="tab-alerts">
+                    🔔 Alertes <span id="nav-alerts-badge" class="badge badge-count" style="display: none;">0</span>
+                </button>
+            </nav>
+
+            <div class="nav-actions">
+                <button id="btn-trigger-scrape" class="btn btn-primary" onclick="triggerScraping()">
+                    🔄 Actualiser les prix
+                </button>
+                <a href="/docs" target="_blank" class="btn btn-secondary" title="Tester l'API interactive avec Swagger">
+                    📖 API Swagger
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenu Principal -->
+    <main>
+
+        <!-- ========================================== -->
+        <!-- ONGLET 1 : TABLEAU DE BORD (DASHBOARD)     -->
+        <!-- ========================================== -->
+        <section id="tab-dashboard" class="tab-content active">
+            <div class="section-header">
+                <h2>Vue d'ensemble</h2>
+                <span style="color: var(--text-muted); font-size: 0.9rem;">
+                    Surveillance en temps réel des prix multi-sites
+                </span>
+            </div>
+
+            <!-- Grille de métriques clés -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-products">0</div>
+                        <div class="stat-label">Produits suivis</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">🏬</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-stores">0</div>
+                        <div class="stat-label">Magasins surveillés</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-prices">0</div>
+                        <div class="stat-label">Relevés de prix enregistrés</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">🔔</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-alerts" style="color: var(--danger);">0</div>
+                        <div class="stat-label">Alertes actives</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparatif rapide des prix -->
+            <div class="card">
+                <div class="card-title">
+                    <span>⚡ Synthèse du comparateur de prix</span>
+                    <button class="btn btn-secondary btn-sm" onclick="switchTab('tab-products')">Voir détails complets &rarr;</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th>Nombre d'offres</th>
+                                <th>Offres disponibles</th>
+                                <th>Meilleur prix constaté</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-comparison-tbody">
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: #64748b;">Chargement...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Dernières alertes générées -->
+            <div class="card">
+                <div class="card-title">
+                    <span>🚨 Dernières baisses de prix sous le seuil</span>
+                    <button class="btn btn-secondary btn-sm" onclick="switchTab('tab-alerts')">Gérer les alertes &rarr;</button>
+                </div>
+                <div id="dashboard-latest-alerts">
+                    <p style="color: #64748b;">Chargement des alertes...</p>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- ONGLET 2 : PRODUITS & COMPARATEUR          -->
+        <!-- ========================================== -->
+        <section id="tab-products" class="tab-content">
+            <div class="section-header">
+                <h2>Gestion des produits & Comparaison</h2>
+            </div>
+
+            <!-- Formulaire d'ajout d'un produit -->
+            <div class="card">
+                <div class="card-title">➕ Ajouter un produit à surveiller</div>
+                <form id="form-add-product">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="product-name">Nom du produit *</label>
+                            <input type="text" id="product-name" placeholder="ex: Sony WH-1000XM5" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="product-store">Magasin initial (optionnel)</label>
+                            <select id="product-store">
+                                <option value="">Sélectionner une boutique...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="product-url">URL / Fiche produit (optionnel)</label>
+                            <input type="text" id="product-url" placeholder="ex: demo_sites/shop_a.html ou https://...">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="product-threshold">Seuil d'alerte en € (optionnel)</label>
+                            <input type="number" id="product-threshold" step="0.01" placeholder="ex: 280">
+                        </div>
+
+                        <div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                Enregistrer le produit
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Liste des produits et comparateur -->
+            <div id="products-list-container">
+                <p style="color: #64748b;">Chargement de vos produits...</p>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- ONGLET 3 : HISTORIQUE & GRAPHIQUE          -->
+        <!-- ========================================== -->
+        <section id="tab-history" class="tab-content">
+            <div class="section-header">
+                <h2>Historique de l'évolution des prix</h2>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="history-product-select">Sélectionner un produit :</label>
+                    <select id="history-product-select" style="min-width: 250px;">
+                        <option value="">Chargement...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Graphique Chart.js -->
+            <div class="card" style="height: 380px;">
+                <canvas id="priceChart"></canvas>
+            </div>
+
+            <!-- Tableau chronologique des relevés -->
+            <div class="card">
+                <div class="card-title">Relevés chronologiques détaillés</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Magasin</th>
+                                <th>Prix relevé</th>
+                                <th>Date et heure de collecte</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-tbody">
+                            <tr>
+                                <td colspan="3" style="text-align: center; color: #64748b;">Chargement...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- ONGLET 4 : ALERTES                         -->
+        <!-- ========================================== -->
+        <section id="tab-alerts" class="tab-content">
+            <div class="section-header">
+                <h2>Alertes de baisse de prix</h2>
+                <span style="font-size: 0.9rem; color: #64748b;">
+                    Déclenchées automatiquement dès que : <strong>Prix relevé &le; Seuil d'alerte</strong>
+                </span>
+            </div>
+
+            <div id="alerts-list-container">
+                <p style="color: #64748b;">Chargement des alertes...</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal pour associer un magasin à un produit existant -->
+    <div id="modal-add-source" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 style="font-size: 1.1rem;">Ajouter un magasin pour <span id="modal-source-product-name" style="color: var(--primary);"></span></h3>
+                <button class="close-modal-btn" onclick="closeAddSourceModal()">&times;</button>
+            </div>
+            <form id="form-modal-source">
+                <input type="hidden" id="modal-source-product-id">
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label for="modal-source-store-id">Magasin *</label>
+                    <select id="modal-source-store-id" required>
+                        <!-- Rempli en JS -->
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label for="modal-source-url">URL / Fiche produit *</label>
+                    <input type="text" id="modal-source-url" placeholder="demo_sites/shop_b.html ou https://..." required>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="modal-source-threshold">Seuil d'alerte en €</label>
+                    <input type="number" id="modal-source-threshold" step="0.01" placeholder="ex: 275">
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddSourceModal()">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Associer ce magasin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast de notification -->
+    <div id="toast">Message de notification</div>
+
+    <!-- Script Application -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
